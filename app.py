@@ -388,12 +388,23 @@ df_alert = df_alert.dropna(subset=['DateTime'])
 
 # --- Sidebar Filters ---
 st.sidebar.subheader("🗓️ Select Date Range")
-min_date = df_alert['Date'].min()
-max_date = df_alert['Date'].max()
+
+available_dates = sorted(df_alert['Date'].dropna().dt.date.unique())
+min_date = available_dates[0]
+max_date = available_dates[-1]
 
 start_date, end_date = st.sidebar.date_input(
-    "Date Range", value=(min_date, max_date), min_value=min_date, max_value=max_date
+    "Select Date Range",
+    value=(min_date, max_date),
+    min_value=min_date,
+    max_value=max_date
 )
+
+# Check validity
+if start_date not in available_dates or end_date not in available_dates:
+    st.sidebar.error("Selected date range includes unavailable dates. Please pick valid dates.")
+    st.stop()
+
 
 st.sidebar.subheader("⏰ Select Hour Range")
 hour_start, hour_end = st.sidebar.slider(
