@@ -576,43 +576,98 @@ elif analysis_type == "Alerts per Hour for Selected Date":
 
 
 # --- Analysis 5: Alerts per Hour by Region ---
+# elif analysis_type == "Alerts per Hour by Region":
+#     df_alert['Hour'] = df_alert['DateTime'].dt.hour
+#     unique_alerts = df_alert[['DateTime', 'Region']].drop_duplicates()
+#     unique_alerts['Hour'] = unique_alerts['DateTime'].dt.hour
+
+#     region_hour_alert_count = (
+#         unique_alerts.groupby(['Region', 'Hour'])
+#         .size()
+#         .reset_index(name='Alert Count')
+#     )
+
+#     # ✅ Filter by selected hour range before plotting
+#     region_hour_alert_count = region_hour_alert_count[
+#         (region_hour_alert_count['Hour'] >= hour_start) &
+#         (region_hour_alert_count['Hour'] <= hour_end)
+#     ]
+
+#     # Label each hour nicely
+#     region_hour_alert_count['Hour Label'] = region_hour_alert_count['Hour'].apply(
+#         lambda h: f"{h:02d}:00 - {h:02d}:59"
+#     )
+
+#     st.write(f"### ⏰ Number of Unique Alert Events per Hour by Region ({hour_start}:00 to {hour_end}:00)")
+
+#     if graph_type == "Bar Chart":
+#         fig = px.bar(region_hour_alert_count, x='Hour Label', y='Alert Count', color='Region',
+#                      barmode='group', text='Alert Count',
+#                      title="Alerts per Hour by Region (Distinct Events)",
+#                      labels={'Hour Label': 'Hour Range', 'Alert Count': 'Number of Alerts'},
+#                      height=900, width=1600)
+#     else:
+#         fig = px.line(region_hour_alert_count, x='Hour Label', y='Alert Count', color='Region',
+#                       markers=True, text='Alert Count',
+#                       title="Alerts per Hour by Region (Distinct Events)",
+#                       labels={'Hour Label': 'Hour Range', 'Alert Count': 'Number of Alerts'},
+#                       height=900, width=1600)
+
+#     fig = format_graph(fig)
+#     fig.update_layout(xaxis_tickangle=-90)
+#     st.plotly_chart(fig, use_container_width=True)
+# --- Analysis 5: Alerts per Hour by Region ---
 elif analysis_type == "Alerts per Hour by Region":
-    df_alert['Hour'] = df_alert['DateTime'].dt.hour
-    unique_alerts = df_alert[['DateTime', 'Region']].drop_duplicates()
-    unique_alerts['Hour'] = unique_alerts['DateTime'].dt.hour
+    available_dates = sorted(df_alert['Date'].dropna().dt.date.unique())
+    selected_date = st.selectbox("📆 Select a date", available_dates)
 
-    region_hour_alert_count = (
-        unique_alerts.groupby(['Region', 'Hour'])
-        .size()
-        .reset_index(name='Alert Count')
-    )
+    # Filter for selected date and hour range
+    start_dt = pd.to_datetime(f"{selected_date} {hour_start:02d}:00:00")
+    end_dt = pd.to_datetime(f"{selected_date} {hour_end:02d}:59:59")
 
-    # ✅ Filter by selected hour range before plotting
-    region_hour_alert_count = region_hour_alert_count[
-        (region_hour_alert_count['Hour'] >= hour_start) &
-        (region_hour_alert_count['Hour'] <= hour_end)
+    df_selected = df_alert[
+        (df_alert['DateTime'] >= start_dt) &
+        (df_alert['DateTime'] <= end_dt)
     ]
 
-    # Label each hour nicely
-    region_hour_alert_count['Hour Label'] = region_hour_alert_count['Hour'].apply(
-        lambda h: f"{h:02d}:00 - {h:02d}:59"
-    )
-
-    st.write(f"### ⏰ Number of Unique Alert Events per Hour by Region ({hour_start}:00 to {hour_end}:00)")
-
-    if graph_type == "Bar Chart":
-        fig = px.bar(region_hour_alert_count, x='Hour Label', y='Alert Count', color='Region',
-                     barmode='group', text='Alert Count',
-                     title="Alerts per Hour by Region (Distinct Events)",
-                     labels={'Hour Label': 'Hour Range', 'Alert Count': 'Number of Alerts'},
-                     height=900, width=1600)
+    if df_selected.empty:
+        st.warning("No data available for the selected date and hour range.")
     else:
-        fig = px.line(region_hour_alert_count, x='Hour Label', y='Alert Count', color='Region',
-                      markers=True, text='Alert Count',
-                      title="Alerts per Hour by Region (Distinct Events)",
-                      labels={'Hour Label': 'Hour Range', 'Alert Count': 'Number of Alerts'},
-                      height=900, width=1600)
+        df_selected['Hour'] = df_selected['DateTime'].dt.hour
+        unique_alerts = df_selected[['DateTime', 'Region']].drop_duplicates()
+        unique_alerts['Hour'] = unique_alerts['DateTime'].dt.hour
 
-    fig = format_graph(fig)
-    fig.update_layout(xaxis_tickangle=-90)
-    st.plotly_chart(fig, use_container_width=True)
+        region_hour_alert_count = (
+            unique_alerts.groupby(['Region', 'Hour'])
+            .size()
+            .reset_index(name='Alert Count')
+        )
+
+        # Filter by hour range
+        region_hour_alert_count = region_hour_alert_count[
+            (region_hour_alert_count['Hour'] >= hour_start) &
+            (region_hour_alert_count['Hour'] <= hour_end)
+        ]
+
+        region_hour_alert_count['Hour Label'] = region_hour_alert_count['Hour'].apply(
+            lambda h: f"{h:02d}:00 - {h:02d}:59"
+        )
+
+        st.write(f"### ⏰ Number of Unique Alert Events per Hour by Region on {selected_date.strftime('%d-%m-%Y')}")
+
+        if graph_type == "Bar Chart":
+            fig = px.bar(region_hour_alert_count, x='Hour Label', y='Alert Count', color='Region',
+                         barmode='group', text='Alert Count',
+                         title=f"Alerts per Hour by Region on {selected_date.strftime('%d-%m-%Y')}",
+                         labels={'Hour Label': 'Hour Range', 'Alert Count': 'Number of Alerts'},
+                         height=900, width=1600)
+        else:
+            fig = px.line(region_hour_alert_count, x='Hour Label', y='Alert Count', color='Region',
+                          markers=True, text='Alert Count',
+                          title=f"Alerts per Hour by Region on {selected_date.strftime('%d-%m-%Y')}",
+                          labels={'Hour Label': 'Hour Range', 'Alert Count': 'Number of Alerts'},
+                          height=900, width=1600)
+
+        fig = format_graph(fig)
+        fig.update_layout(xaxis_tickangle=-90)
+        st.plotly_chart(fig, use_container_width=True)
