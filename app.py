@@ -366,7 +366,7 @@ analysis_type = st.sidebar.radio("Choose an analysis:", [
     "Analyze Most Occurring Signals in Region",
     "Analyze Number of Alerts in Region",
     "Total Alerts with Date Wise",
-    "Alerts per Hour for Selected Date",
+    # "Alerts per Hour for Selected Date",
     "Alerts per Hour by Region"
 ])
 
@@ -444,7 +444,7 @@ if analysis_type == "Analyze Most Occurring Signals in Region":
 
     if selected_region:
         region_data = signal_counts[signal_counts['Region'] == selected_region].sort_values(by='Count', ascending=False)
-        st.write(f"### 📈 Most Occurring Signals in {selected_region} ({hour_start}:00 to {hour_end}:00)")
+        st.write(f"### 📈 Most Occurring Signals in {selected_region}")
 
         if graph_type == "Bar Chart":
             fig = px.bar(region_data, x='Signal', y='Count', text='Count',
@@ -465,7 +465,7 @@ if analysis_type == "Analyze Most Occurring Signals in Region":
 elif analysis_type == "Analyze Number of Alerts in Region":
     region_alert_count = df_alert[['DateTime', 'Region']].drop_duplicates().groupby('Region').size().reset_index(name='Alert Count')
 
-    st.write(f"### 🚨 Number of Alerts per Region ({hour_start}:00 to {hour_end}:00)")
+    st.write(f"### 🚨 Number of Alerts per Region ")
 
     if graph_type == "Bar Chart":
         fig = px.bar(region_alert_count, x='Region', y='Alert Count', text='Alert Count',
@@ -487,7 +487,7 @@ elif analysis_type == "Total Alerts with Date Wise":
     df_grouped = df_alert.groupby(['Date', 'Time']).size()
     alert_counts = df_grouped.groupby('Date').size().reset_index(name='Alert Count')
 
-    st.write(f"### 📅 Total Alerts Per Date ({hour_start}:00 to {hour_end}:00)")
+    st.write(f"### 📅 Total Alerts Per Date ")
 
     if graph_type == "Bar Chart":
         fig = px.bar(
@@ -537,38 +537,38 @@ elif analysis_type == "Total Alerts with Date Wise":
     st.plotly_chart(fig, use_container_width=True)
 
 # --- Analysis 4: Alerts per Hour for Selected Date ---
-elif analysis_type == "Alerts per Hour for Selected Date":
-    available_dates = df_alert['Date'].dropna().dt.date.unique()
-    selected_date = st.selectbox("📆 Select a date", sorted(available_dates))
+# elif analysis_type == "Alerts per Hour for Selected Date":
+#     available_dates = df_alert['Date'].dropna().dt.date.unique()
+#     selected_date = st.selectbox("📆 Select a date", sorted(available_dates))
 
-    start_dt = pd.to_datetime(f"{selected_date} {hour_start:02d}:00:00")
-    end_dt = pd.to_datetime(f"{selected_date} {hour_end:02d}:59:59")
+#     start_dt = pd.to_datetime(f"{selected_date} {hour_start:02d}:00:00")
+#     end_dt = pd.to_datetime(f"{selected_date} {hour_end:02d}:59:59")
 
-    df_selected = df_alert[
-        (df_alert['DateTime'] >= start_dt) &
-        (df_alert['DateTime'] <= end_dt)
-    ]
+#     df_selected = df_alert[
+#         (df_alert['DateTime'] >= start_dt) &
+#         (df_alert['DateTime'] <= end_dt)
+#     ]
 
-    if df_selected.empty:
-        st.warning("No data available for the selected date and hour range.")
-    else:
-        # Drop duplicates for Region + DateTime to count 1 alert per region per timestamp
-        df_unique_alerts = df_selected.drop_duplicates(subset=['DateTime', 'Region'])
+#     if df_selected.empty:
+#         st.warning("No data available for the selected date and hour range.")
+#     else:
+#         # Drop duplicates for Region + DateTime to count 1 alert per region per timestamp
+#         df_unique_alerts = df_selected.drop_duplicates(subset=['DateTime', 'Region'])
 
-        df_unique_alerts['Hour'] = df_unique_alerts['DateTime'].dt.hour
-        df_unique_alerts['Hour Label'] = df_unique_alerts['Hour'].apply(lambda h: f"{h:02d}:00 - {h:02d}:59")
+#         df_unique_alerts['Hour'] = df_unique_alerts['DateTime'].dt.hour
+#         df_unique_alerts['Hour Label'] = df_unique_alerts['Hour'].apply(lambda h: f"{h:02d}:00 - {h:02d}:59")
 
-        hourly_alerts = df_unique_alerts.groupby('Hour Label').size().reset_index(name='Alert Count')
+#         hourly_alerts = df_unique_alerts.groupby('Hour Label').size().reset_index(name='Alert Count')
 
-        st.write(f"### ⏱️ Hourly Alert Distribution for {selected_date.strftime('%d-%m-%Y')}")
+#         st.write(f"### ⏱️ Hourly Alert Distribution for {selected_date.strftime('%d-%m-%Y')}")
 
-        fig = px.bar(hourly_alerts, x='Hour Label', y='Alert Count', text='Alert Count',
-                     title=f'Alerts per Hour on {selected_date.strftime("%d-%m-%Y")}',
-                     labels={'Hour': 'Hour of Day', 'Alert Count': 'Number of Alerts'},
-                     color='Alert Count', color_continuous_scale='Tealgrn', height=700, width=1400)
+#         fig = px.bar(hourly_alerts, x='Hour Label', y='Alert Count', text='Alert Count',
+#                      title=f'Alerts per Hour on {selected_date.strftime("%d-%m-%Y")}',
+#                      labels={'Hour': 'Hour of Day', 'Alert Count': 'Number of Alerts'},
+#                      color='Alert Count', color_continuous_scale='Tealgrn', height=700, width=1400)
 
-        fig = format_graph(fig)
-        st.plotly_chart(fig, use_container_width=True)
+#         fig = format_graph(fig)
+#         st.plotly_chart(fig, use_container_width=True)
 
 
 
@@ -598,7 +598,7 @@ elif analysis_type == "Alerts per Hour for Selected Date":
 #         lambda h: f"{h:02d}:00 - {h:02d}:59"
 #     )
 
-#     st.write(f"### ⏰ Number of Unique Alert Events per Hour by Region ({hour_start}:00 to {hour_end}:00)")
+#     st.write(f"### ⏰ Number of Unique Alert Events per Hour by Region ")
 
 #     if graph_type == "Bar Chart":
 #         fig = px.bar(region_hour_alert_count, x='Hour Label', y='Alert Count', color='Region',
