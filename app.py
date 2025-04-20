@@ -340,7 +340,6 @@
 
 
 
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -368,7 +367,7 @@ analysis_type = st.sidebar.radio("Choose an analysis:", [
     "Analyze Number of Alerts in Region",
     "Total Alerts with Date Wise",
     "Alerts per Hour for Selected Date",
-     "Alerts per Hour by Region"
+    "Alerts per Hour by Region"
 ])
 
 if not uploaded_file:
@@ -401,12 +400,13 @@ hour_start, hour_end = st.sidebar.slider(
     "Hour Range (24h)", 0, 23, (0, 23)
 )
 
-# --- Apply Filters ---
+# --- Apply Filters (Corrected) ---
+start_datetime = pd.to_datetime(f"{start_date} {hour_start:02d}:00:00")
+end_datetime = pd.to_datetime(f"{end_date} {hour_end:02d}:59:59")
+
 df_alert = df_alert[
-    (df_alert['Date'] >= pd.to_datetime(start_date)) &
-    (df_alert['Date'] <= pd.to_datetime(end_date)) &
-    (df_alert['DateTime'].dt.hour >= hour_start) &
-    (df_alert['DateTime'].dt.hour <= hour_end)
+    (df_alert['DateTime'] >= start_datetime) &
+    (df_alert['DateTime'] <= end_datetime)
 ]
 
 # --- Graph Style ---
@@ -530,74 +530,59 @@ elif analysis_type == "Alerts per Hour for Selected Date":
     available_dates = df_alert['Date'].dropna().dt.date.unique()
     selected_date = st.selectbox("📆 Select a date", sorted(available_dates))
 
-    df_selected = df_alert[df_alert['Date'].dt.date == selected_date]
+    start_dt = pd.to_datetime(f"{selected_date} {hour_start:02d}:00:00")
+    end_dt = pd.to_datetime(f"{selected_date} {hour_end:02d}:59:59")
 
-    df_selected['Hour'] = df_selected['DateTime'].dt.hour
-    hourly_alerts = df_selected.groupby('Hour').size().reset_index(name='Alert Count')
+    df_selected = df_alert[
+        (df_alert['DateTime'] >= start_dt) &
+        (df_alert['DateTime'] <= end_dt)
+    ]
 
-    st.write(f"### ⏱️ Hourly Alert Distribution for {selected_date.strftime('%d-%m-%Y')}")
+    if df_selected.empty:
+        st.warning("No data available for the selected date and hour range.")
+    else:
+        # Drop duplicates for Region + DateTime to count 1 alert per region per timestamp
+        df_unique_alerts = df_selected.drop_duplicates(subset=['DateTime', 'Region'])
 
-    fig = px.bar(hourly_alerts, x='Hour', y='Alert Count', text='Alert Count',
-                 title=f'Alerts per Hour on {selected_date.strftime("%d-%m-%Y")}',
-                 labels={'Hour': 'Hour of Day', 'Alert Count': 'Number of Alerts'},
-                 color='Alert Count', color_continuous_scale='Tealgrn', height=700, width=1400)
+        df_unique_alerts['Hour'] = df_unique_alerts['DateTime'].dt.hour
+        df_unique_alerts['Hour Label'] = df_unique_alerts['Hour'].apply(lambda h: f"{h:02d}:00 - {h:02d}:59")
 
-    fig = format_graph(fig)
-    st.plotly_chart(fig, use_container_width=True)
+        hourly_alerts = df_unique_alerts.groupby('Hour Label').size().reset_index(name='Alert Count')
 
-    
+        st.write(f"### ⏱️ Hourly Alert Distribution for {selected_date.strftime('%d-%m-%Y')}")
 
-# elif analysis_type == "Alerts per Hour by Region":
-#     # Extract the hour from the DateTime
-#     df_alert['Hour'] = df_alert['DateTime'].dt.hour
+        fig = px.bar(hourly_alerts, x='Hour Label', y='Alert Count', text='Alert Count',
+                     title=f'Alerts per Hour on {selected_date.strftime("%d-%m-%Y")}',
+                     labels={'Hour': 'Hour of Day', 'Alert Count': 'Number of Alerts'},
+                     color='Alert Count', color_continuous_scale='Tealgrn', height=700, width=1400)
 
-#     # Count unique alert events (distinct DateTime + Region)
-#     unique_alerts = df_alert[['DateTime', 'Region']]
-#     unique_alerts = unique_alerts.drop_duplicates()
-#     unique_alerts['Hour'] = unique_alerts['DateTime'].dt.hour
+        fig = format_graph(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
-#     # Group by Region and Hour
-#     region_hour_alert_count = (
-#         unique_alerts.groupby(['Region', 'Hour'])
-#         .size()
-#         .reset_index(name='Alert Count')
-#     )
 
-#     st.write(f"### ⏰ Number of Unique Alert Events per Hour by Region ({hour_start}:00 to {hour_end}:00)")
 
-#     if graph_type == "Bar Chart":
-#         fig = px.bar(region_hour_alert_count, x='Hour', y='Alert Count', color='Region',
-#                      barmode='group', text='Alert Count',
-#                      title="Alerts per Hour by Region (Distinct Events)",
-#                      labels={'Hour': 'Hour of Day', 'Alert Count': 'Number of Alerts'},
-#                      height=900, width=1600)
-#     else:
-#         fig = px.line(region_hour_alert_count, x='Hour', y='Alert Count', color='Region',
-#                       markers=True, text='Alert Count',
-#                       title="Alerts per Hour by Region (Distinct Events)",
-#                       labels={'Hour': 'Hour of Day', 'Alert Count': 'Number of Alerts'},
-#                       height=900, width=1600)
 
-#     fig = format_graph(fig)
-#     fig.update_layout(xaxis_tickmode='linear', xaxis_tick0=0, xaxis_dtick=1)
-#     st.plotly_chart(fig, use_container_width=True)
 
+
+# --- Analysis 5: Alerts per Hour by Region ---
 elif analysis_type == "Alerts per Hour by Region":
-    # Extract the hour from the DateTime
     df_alert['Hour'] = df_alert['DateTime'].dt.hour
-
-    # Drop duplicates to count unique alert events
     unique_alerts = df_alert[['DateTime', 'Region']].drop_duplicates()
     unique_alerts['Hour'] = unique_alerts['DateTime'].dt.hour
 
-    # Group by Region and Hour
     region_hour_alert_count = (
         unique_alerts.groupby(['Region', 'Hour'])
         .size()
         .reset_index(name='Alert Count')
     )
 
-    # Create hour range label: "08:00 - 08:59"
+    # ✅ Filter by selected hour range before plotting
+    region_hour_alert_count = region_hour_alert_count[
+        (region_hour_alert_count['Hour'] >= hour_start) &
+        (region_hour_alert_count['Hour'] <= hour_end)
+    ]
+
+    # Label each hour nicely
     region_hour_alert_count['Hour Label'] = region_hour_alert_count['Hour'].apply(
         lambda h: f"{h:02d}:00 - {h:02d}:59"
     )
